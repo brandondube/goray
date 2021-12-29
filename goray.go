@@ -36,6 +36,7 @@ func NewtonRaphsonIntersect(P1, S Vec3, FFp SagNormalFunc, s1, eps float64, maxi
 		Pj = AdvanceRay(P1, S, sj)
 		sag, N = FFp(Pj[0], Pj[1])
 		Fpj = DotVec3(N, S)
+		sag = Pj[2] - sag // Z-F
 		sjp1 = sj - sag/Fpj
 		delta = math.Abs(sjp1 - sj)
 		if delta < eps {
