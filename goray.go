@@ -1,6 +1,8 @@
 package goray
 
-import "math"
+import (
+	"math"
+)
 
 const (
 	REFLECT int = 1
@@ -42,6 +44,7 @@ func NewtonRaphsonIntersect(P1, S Vec3, FFp SagNormalFunc, s1, eps float64, maxi
 		if delta < eps {
 			break
 		}
+		sj = sjp1
 	}
 	return Pj, N
 }
