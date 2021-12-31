@@ -2,6 +2,7 @@ package goray
 
 import (
 	"math"
+	"sync"
 )
 
 const (
@@ -73,18 +74,16 @@ func Reflect(S, N Vec3) Vec3 {
 	return SubVec3(S, ScaleVec3(N, -2*cosI))
 }
 
-func Raytrace(prescription []Surface, P, S Vec3, wvl, nAmbient float64) ([]Vec3, []Vec3) {
-	nsurf := len(prescription)
-	Pout := make([]Vec3, nsurf+1)
-	Sout := make([]Vec3, nsurf+1)
+func RaytraceNoAlloc(prescription []Surface, P, S Vec3, wvl, nAmbient float64, niterIntersect int, Pout, Sout []Vec3) {
 	var (
-		Pj   Vec3 = P
-		Sj   Vec3 = S
-		N    Vec3
-		P0   Vec3
-		Pjp1 Vec3
-		Sjp1 Vec3
-		surf Surface
+		nsurf      = len(prescription)
+		Pj    Vec3 = P
+		Sj    Vec3 = S
+		N     Vec3
+		P0    Vec3
+		Pjp1  Vec3
+		Sjp1  Vec3
+		surf  Surface
 	)
 	Pout[0] = P
 	Sout[0] = S
@@ -93,7 +92,7 @@ func Raytrace(prescription []Surface, P, S Vec3, wvl, nAmbient float64) ([]Vec3,
 		// S&M step 1
 		P0, Sj = TransformToLocalCoords(Pj, surf.Origin, Sj, surf.R)
 		// S&M step 2
-		Pj, N = Intersect(P0, Sj, surf.Geom.SagNormal, 1e-14, 100)
+		Pj, N = Intersect(P0, Sj, surf.Geom.SagNormal, 1e-14, niterIntersect)
 		if surf.Typ == REFLECT {
 			Sjp1 = Reflect(Sj, N)
 		}
@@ -102,5 +101,63 @@ func Raytrace(prescription []Surface, P, S Vec3, wvl, nAmbient float64) ([]Vec3,
 		Sout[j+1] = Sjp1
 		Pj, Sj = Pjp1, Sjp1
 	}
+}
+
+func Raytrace(prescription []Surface, P, S Vec3, wvl, nAmbient float64, niterIntersect int) ([]Vec3, []Vec3) {
+	nsurf := len(prescription)
+	Pout := make([]Vec3, nsurf+1)
+	Sout := make([]Vec3, nsurf+1)
+	RaytraceNoAlloc(prescription, P, S, wvl, nAmbient, niterIntersect, Pout, Sout)
+	return Pout, Sout
+}
+
+// BlockRaytraceNoAlloc is simply a loop over P, S, Pout, Sout to trace multiple
+// rays.  It's used to help implement massively parallel raytracing
+func BlockRaytraceNoAlloc(prescription []Surface, Ps, Ss []Vec3, wvl, nAmbient float64, niterIntersect int, Pout, Sout [][]Vec3) {
+	nrays := len(Ps)
+	for i := 0; i < nrays; i++ {
+		RaytraceNoAlloc(prescription, Ps[i], Ss[i], wvl, nAmbient, niterIntersect, Pout[i], Sout[i])
+	}
+}
+
+type startStop struct {
+	start, stop int
+}
+
+func ParallelRaytrace(prescription []Surface, Ps, Ss []Vec3, wvl, nAmbient float64, niterIntersect, nthreads int) ([][]Vec3, [][]Vec3) {
+	nrays := len(Ps)
+	lenPout := len(prescription) + 1
+	Pout := make([][]Vec3, nrays)
+	Sout := make([][]Vec3, nrays)
+	startStops := make([]startStop, 0, nthreads)
+	raysPerThread := nrays / nthreads
+	raysForLastThread := nrays % nthreads
+	if raysForLastThread == 0 {
+		raysForLastThread = raysPerThread
+	}
+	start := 0
+	for i := 0; i < nthreads-1; i++ {
+		startStops = append(startStops, startStop{start, start + raysPerThread})
+		start += raysPerThread
+	}
+	startStops = append(startStops, startStop{start, start + raysForLastThread})
+	var wg sync.WaitGroup
+	for i := 0; i < nthreads; i++ {
+		wg.Add(1) // add and done on each iter so that we know all threads launched
+		go func(i int) {
+			defer wg.Done()
+			ss := startStops[i]
+			P := Ps[ss.start:ss.stop]
+			S := Ss[ss.start:ss.stop]
+			PP := Pout[ss.start:ss.stop]
+			SS := Sout[ss.start:ss.stop]
+			for j := 0; j < len(PP); j++ {
+				PP[j] = make([]Vec3, lenPout)
+				SS[j] = make([]Vec3, lenPout)
+			}
+			BlockRaytraceNoAlloc(prescription, P, S, wvl, nAmbient, niterIntersect, PP, SS)
+		}(i)
+	}
+	wg.Wait()
 	return Pout, Sout
 }
