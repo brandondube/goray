@@ -34,6 +34,7 @@ func BenchmarkRaytraceNoAlloc(b *testing.B) {
 	S0 := Vec3{0, 0, 1}
 	Pout := make([]Vec3, len(prescription)+1)
 	Sout := make([]Vec3, len(prescription)+1)
+	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		RaytraceNoAlloc(prescription, P0, S0, .6328, 1, 100, Pout, Sout)
 	}
@@ -58,6 +59,7 @@ func _benchmarkParallelRaytraceVarThreads(nthreads, nrays int, b *testing.B) {
 		Ss[i] = S
 	}
 	Pout, Sout := AllocateOutputSpace(len(prescription), nrays)
+	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		ParallelRaytrace(prescription, Ps, Ss, .6328, 1, 100, nthreads, Pout, Sout)
 	}
@@ -85,4 +87,12 @@ func BenchmarkParallelRaytrace5Thread1Mray(b *testing.B) {
 
 func BenchmarkParallelRaytrace6Thread1Mray(b *testing.B) {
 	_benchmarkParallelRaytraceVarThreads(6, 1e6, b)
+}
+
+func BenchmarkParallelRaytrace7Thread1Mray(b *testing.B) {
+	_benchmarkParallelRaytraceVarThreads(7, 1e6, b)
+}
+
+func BenchmarkParallelRaytrace8Thread1Mray(b *testing.B) {
+	_benchmarkParallelRaytraceVarThreads(8, 1e6, b)
 }

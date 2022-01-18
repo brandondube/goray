@@ -153,23 +153,24 @@ func ParallelRaytrace(prescription []Surface, Ps, Ss []Vec3, wvl, nAmbient float
 func AllocateOutputSpace(nsurfaces, nrays int) ([][]Vec3, [][]Vec3) {
 	var (
 		v      Vec3
+		v0     = v[0]
 		ptr    *Vec3
 		offset int
 		slc    []Vec3
 	)
-	const sz = int(unsafe.Sizeof(v))
+	const szVec = int(unsafe.Sizeof(v))
+	const szElem = int(unsafe.Sizeof(v0))
 	dim1 := nrays
 	dim2 := nsurfaces + 1
-	allocSize := dim1 * dim2 * sz
-	buf1 := make([]byte, allocSize)
-	buf2 := make([]byte, allocSize)
+	allocSize := dim1 * dim2 * szVec
+	rawbuf1 := make([]uint64, allocSize/8)
+	rawbuf2 := make([]uint64, allocSize/8)
+	buf1 := unsafe.Slice((*byte)(unsafe.Pointer(&rawbuf1[0])), allocSize)
+	buf2 := unsafe.Slice((*byte)(unsafe.Pointer(&rawbuf2[0])), allocSize)
 	out1 := make([][]Vec3, 0, dim1)
 	out2 := make([][]Vec3, 0, dim1)
 
 	for i := 0; i < dim1; i++ {
-		// slc = out1[i]
-		// sh = (*reflect.SliceHeader)(unsafe.Pointer(&slc))
-		// sh.Cap = dim2
 		ptr = (*Vec3)(unsafe.Pointer(&buf1[offset]))
 		slc = unsafe.Slice(ptr, dim2)
 		out1 = append(out1, slc)
@@ -177,6 +178,7 @@ func AllocateOutputSpace(nsurfaces, nrays int) ([][]Vec3, [][]Vec3) {
 		ptr = (*Vec3)(unsafe.Pointer(&buf2[offset]))
 		slc = unsafe.Slice(ptr, dim2)
 		out2 = append(out2, slc)
+		offset += dim2 * szElem
 
 	}
 	return out1, out2
