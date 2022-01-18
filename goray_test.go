@@ -65,34 +65,36 @@ func _benchmarkParallelRaytraceVarThreads(nthreads, nrays int, b *testing.B) {
 	}
 }
 
+const oneM = 1e6
+
 func BenchmarkParallelRaytrace1Thread1Mray(b *testing.B) {
-	_benchmarkParallelRaytraceVarThreads(1, 1e6, b)
+	_benchmarkParallelRaytraceVarThreads(1, oneM, b)
 }
 
 func BenchmarkParallelRaytrace2Thread1Mray(b *testing.B) {
-	_benchmarkParallelRaytraceVarThreads(2, 1e6, b)
+	_benchmarkParallelRaytraceVarThreads(2, oneM, b)
 }
 
 func BenchmarkParallelRaytrace3Thread1Mray(b *testing.B) {
-	_benchmarkParallelRaytraceVarThreads(3, 1e6, b)
+	_benchmarkParallelRaytraceVarThreads(3, oneM, b)
 }
 
 func BenchmarkParallelRaytrace4Thread1Mray(b *testing.B) {
-	_benchmarkParallelRaytraceVarThreads(4, 1e6, b)
+	_benchmarkParallelRaytraceVarThreads(4, oneM, b)
 }
 
 func BenchmarkParallelRaytrace5Thread1Mray(b *testing.B) {
-	_benchmarkParallelRaytraceVarThreads(5, 1e6, b)
+	_benchmarkParallelRaytraceVarThreads(5, oneM, b)
 }
 
 func BenchmarkParallelRaytrace6Thread1Mray(b *testing.B) {
-	_benchmarkParallelRaytraceVarThreads(6, 1e6, b)
+	_benchmarkParallelRaytraceVarThreads(6, oneM, b)
 }
 
 func BenchmarkParallelRaytrace7Thread1Mray(b *testing.B) {
-	_benchmarkParallelRaytraceVarThreads(7, 1e6, b)
+	_benchmarkParallelRaytraceVarThreads(7, oneM, b)
 }
 
 func BenchmarkParallelRaytrace8Thread1Mray(b *testing.B) {
-	_benchmarkParallelRaytraceVarThreads(8, 1e6, b)
+	_benchmarkParallelRaytraceVarThreads(8, oneM, b)
 }
