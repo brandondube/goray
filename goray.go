@@ -3,6 +3,7 @@ package goray
 import (
 	"math"
 	"sync"
+	"unsafe"
 )
 
 const (
@@ -120,44 +121,63 @@ func BlockRaytraceNoAlloc(prescription []Surface, Ps, Ss []Vec3, wvl, nAmbient f
 	}
 }
 
-type startStop struct {
-	start, stop int
-}
-
-func ParallelRaytrace(prescription []Surface, Ps, Ss []Vec3, wvl, nAmbient float64, niterIntersect, nthreads int) ([][]Vec3, [][]Vec3) {
+func ParallelRaytrace(prescription []Surface, Ps, Ss []Vec3, wvl, nAmbient float64, niterIntersect, nthreads int, Pout, Sout [][]Vec3) {
 	nrays := len(Ps)
-	lenPout := len(prescription) + 1
-	Pout := make([][]Vec3, nrays)
-	Sout := make([][]Vec3, nrays)
-	startStops := make([]startStop, 0, nthreads)
-	raysPerThread := nrays / nthreads
-	raysForLastThread := nrays % nthreads
-	if raysForLastThread == 0 {
-		raysForLastThread = raysPerThread
-	}
-	start := 0
-	for i := 0; i < nthreads-1; i++ {
-		startStops = append(startStops, startStop{start, start + raysPerThread})
-		start += raysPerThread
-	}
-	startStops = append(startStops, startStop{start, start + raysForLastThread})
+	chunkSize := nrays / nthreads
+	low := 0
 	var wg sync.WaitGroup
 	for i := 0; i < nthreads; i++ {
 		wg.Add(1) // add and done on each iter so that we know all threads launched
-		go func(i int) {
+		high := low + chunkSize
+		if high > nrays {
+			high = nrays
+		}
+		go func(start, stop int) {
 			defer wg.Done()
-			ss := startStops[i]
-			P := Ps[ss.start:ss.stop]
-			S := Ss[ss.start:ss.stop]
-			PP := Pout[ss.start:ss.stop]
-			SS := Sout[ss.start:ss.stop]
-			for j := 0; j < len(PP); j++ {
-				PP[j] = make([]Vec3, lenPout)
-				SS[j] = make([]Vec3, lenPout)
+			nrays := stop - start
+			P := Ps[start:stop]
+			S := Ss[start:stop]
+			PP := Pout[start:stop]
+			SS := Sout[start:stop]
+			for i := 0; i < nrays; i++ {
+				RaytraceNoAlloc(prescription, P[i], S[i], wvl, nAmbient, niterIntersect, PP[i], SS[i])
 			}
-			BlockRaytraceNoAlloc(prescription, P, S, wvl, nAmbient, niterIntersect, PP, SS)
-		}(i)
+		}(low, high)
+		low += chunkSize
 	}
 	wg.Wait()
-	return Pout, Sout
+	// return Pout, Sout
+}
+
+// AllocateOutputSpace creates output buffers for a raytrace
+func AllocateOutputSpace(nsurfaces, nrays int) ([][]Vec3, [][]Vec3) {
+	var (
+		v      Vec3
+		ptr    *Vec3
+		offset int
+		slc    []Vec3
+	)
+	const sz = int(unsafe.Sizeof(v))
+	dim1 := nrays
+	dim2 := nsurfaces + 1
+	allocSize := dim1 * dim2 * sz
+	buf1 := make([]byte, allocSize)
+	buf2 := make([]byte, allocSize)
+	out1 := make([][]Vec3, 0, dim1)
+	out2 := make([][]Vec3, 0, dim1)
+
+	for i := 0; i < dim1; i++ {
+		// slc = out1[i]
+		// sh = (*reflect.SliceHeader)(unsafe.Pointer(&slc))
+		// sh.Cap = dim2
+		ptr = (*Vec3)(unsafe.Pointer(&buf1[offset]))
+		slc = unsafe.Slice(ptr, dim2)
+		out1 = append(out1, slc)
+
+		ptr = (*Vec3)(unsafe.Pointer(&buf2[offset]))
+		slc = unsafe.Slice(ptr, dim2)
+		out2 = append(out2, slc)
+
+	}
+	return out1, out2
 }

@@ -8,6 +8,7 @@ import "testing"
 // better memory bandwidth scaling though...
 
 func BenchmarkRayTrace(b *testing.B) {
+	// ~330 nsec/op (5.4M raysurf/sec)
 	const c = -0.05
 	const k = -1
 	geo := Conic{c, k}
@@ -18,6 +19,23 @@ func BenchmarkRayTrace(b *testing.B) {
 	S0 := Vec3{0, 0, 1}
 	for i := 0; i < b.N; i++ {
 		Raytrace(prescription, P0, S0, .6328, 1, 100)
+	}
+}
+
+func BenchmarkRaytraceNoAlloc(b *testing.B) {
+	// ~230 nsec/op (7.7M raysurf/sec)
+	const c = -0.05
+	const k = -1
+	geo := Conic{c, k}
+	Surf1 := Surface{Typ: REFLECT, Origin: Vec3{0, 0, 5}, Geom: geo}
+	Surf2 := Surface{Typ: STOP, Origin: Vec3{0, 0, 1/c/2 + 5}, Geom: Plane{}}
+	prescription := []Surface{Surf1, Surf2}
+	P0 := Vec3{0, 1, 2}
+	S0 := Vec3{0, 0, 1}
+	Pout := make([]Vec3, len(prescription)+1)
+	Sout := make([]Vec3, len(prescription)+1)
+	for i := 0; i < b.N; i++ {
+		RaytraceNoAlloc(prescription, P0, S0, .6328, 1, 100, Pout, Sout)
 	}
 }
 
@@ -39,8 +57,9 @@ func _benchmarkParallelRaytraceVarThreads(nthreads, nrays int, b *testing.B) {
 		Ps[i] = P
 		Ss[i] = S
 	}
+	Pout, Sout := AllocateOutputSpace(len(prescription), nrays)
 	for i := 0; i < b.N; i++ {
-		ParallelRaytrace(prescription, Ps, Ss, .6328, 1, 100, nthreads)
+		ParallelRaytrace(prescription, Ps, Ss, .6328, 1, 100, nthreads, Pout, Sout)
 	}
 }
 
