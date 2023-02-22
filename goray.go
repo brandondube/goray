@@ -97,7 +97,7 @@ func RaytraceNoAlloc(prescription []Surface, P, S Vec3, wvl, nAmbient float64, n
 		if surf.Typ == REFLECT {
 			Sjp1 = Reflect(Sj, N)
 		}
-		Pjp1, Sjp1 = TransformToLocalCoords(Pj, ScaleVec3(surf.Origin, -1), Sj, surf.R)
+		Pjp1, Sjp1 = TransformToLocalCoords(Pj, ScaleVec3(surf.Origin, -1), Sjp1, surf.R)
 		Pout[j+1] = Pjp1
 		Sout[j+1] = Sjp1
 		Pj, Sj = Pjp1, Sjp1
