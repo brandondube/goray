@@ -132,23 +132,7 @@ func MultilayerStackrt(pol PolState, lambda float64, stack []NT, aoi float64, va
 			theta = theta1
 			n0 = n1
 		}
-		if vacAmbient {
-			n1 := complex(1, 0)
-			theta = SnellAOR(n0, n1, theta)
-		}
-		Amat = MatMul2C(front, Amat)
-		cos1c := cmplx.Cos(theta)
-		back := Mat2C{
-			{1, 0},
-			{n1 * cos1c, 0},
-		}
-		Amat = MatMul2C(Amat, back)
 	} else if pol == Spol {
-		term2 := Mat2C{
-			{n0cos0, 1},
-			{n0cos0, -1},
-		}
-		Amat = MatScale2C(term2, term1)
 		for _, nt := range stack {
 			n1 = nt.N
 			theta1 := SnellAOR(n0, n1, theta)
@@ -157,18 +141,19 @@ func MultilayerStackrt(pol PolState, lambda float64, stack []NT, aoi float64, va
 			theta = theta1
 			n0 = n1
 		}
-		if vacAmbient {
-			n1 := complex(1, 0)
-			theta = SnellAOR(n0, n1, theta)
-		}
-		cos1c := cmplx.Cos(theta)
-		term4 := Mat2C{
-			{1, 0},
-			{n1 * cos1c, 0},
-		}
-		Amat = MatMul2C(Amat, term4)
 	} else {
 		panic("invalid polarization, must be either Ppol or Spol")
 	}
+	Amat = MatMul2C(front, Amat)
+	if vacAmbient {
+		n1 = complex(1, 0)
+		theta = SnellAOR(n0, n1, theta)
+	}
+	cos1c := cmplx.Cos(theta)
+	back := Mat2C{
+		{1, 0},
+		{n1 * cos1c, 0},
+	}
+	Amat = MatMul2C(Amat, back)
 	return Totalr(Amat), Totalt(Amat)
 }
