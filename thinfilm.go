@@ -5,7 +5,6 @@ import (
 	"math/cmplx"
 )
 
-type Mat2R [2][2]float64
 type Mat2C [2][2]complex128
 
 type NT struct {
@@ -145,10 +144,10 @@ func MultilayerStackrt(pol PolState, lambda float64, stack []NT, aoi float64, va
 		panic("invalid polarization, must be either Ppol or Spol")
 	}
 	Amat = MatMul2C(front, Amat)
-	if vacAmbient {
-		n1 = complex(1, 0)
-		theta = SnellAOR(n0, n1, theta)
-	}
+	// if vacAmbient {
+	// 	n1 = complex(1, 0)
+	// 	theta = SnellAOR(n0, n1, theta)
+	// }
 	cos1c := cmplx.Cos(theta)
 	back := Mat2C{
 		{1, 0},
