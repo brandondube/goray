@@ -1,4 +1,4 @@
-package goray
+package thinfilm
 
 import (
 	"math"
