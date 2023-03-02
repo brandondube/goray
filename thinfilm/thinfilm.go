@@ -1,4 +1,4 @@
-package goray
+package thinfilm
 
 import (
 	"math"
@@ -21,7 +21,7 @@ const (
 	RadToDeg = 180 / math.Pi
 	DegToRad = math.Pi / 180
 
-	n1j = complex(0, 1)
+	n1j = -complex(0, 1)
 )
 
 func MatMul2C(A, B Mat2C) Mat2C {
@@ -54,7 +54,7 @@ func CharacteristicMatrixS(lambda, d float64, n, theta complex128) Mat2C {
 	beta := k * dc * cost
 	sinb := cmplx.Sin(beta)
 	cosb := cmplx.Cos(beta)
-	upperRight := n1j * sinb / (cost * n)
+	upperRight := n1j * sinb / (n * cost)
 	lowerLeft := n1j * n * cost * sinb
 	return Mat2C{
 		{cosb, upperRight},
@@ -96,6 +96,8 @@ func MultilayerStackrt(pol PolState, lambda float64, stack []NT, aoi float64, va
 		n1    complex128
 		theta complex128
 		Amat  Mat2C
+		front Mat2C
+		back  Mat2C
 	)
 	if len(stack) == 0 {
 		panic("zero length stack is meaningless")
@@ -112,17 +114,16 @@ func MultilayerStackrt(pol PolState, lambda float64, stack []NT, aoi float64, va
 	cos0c := complex(cos0, 0)
 
 	term1 := 1 / (2 * n0 * cos0c)
-	n0cos0 := cos0c * n0
-	front := Mat2C{
-		{n0cos0, 1},
-		{n0cos0, -1},
-	}
-	front = MatScale2C(front, term1)
+	// n0cos0 := cos0c * n0
 	Amat = Mat2C{
 		{1, 0},
 		{0, 1},
 	}
 	if pol == Ppol {
+		front = Mat2C{
+			{n0, cos0c},
+			{n0, -cos0c},
+		}
 		for _, nt := range stack {
 			n1 = nt.N
 			theta1 := SnellAOR(n0, n1, theta)
@@ -131,28 +132,36 @@ func MultilayerStackrt(pol PolState, lambda float64, stack []NT, aoi float64, va
 			theta = theta1
 			n0 = n1
 		}
+		cos1c := cmplx.Cos(theta)
+		back = Mat2C{
+			{cos1c, 0},
+			{n1, 0},
+		}
 	} else if pol == Spol {
+		n0cos0c := n0 * cos0c
+		front = Mat2C{
+			{n0cos0c, 1},
+			{n0cos0c, -1},
+		}
 		for _, nt := range stack {
 			n1 = nt.N
 			theta1 := SnellAOR(n0, n1, theta)
+			// fmt.Printf("in stack, %v -> %v rad\n", theta, theta1)
 			Mj := CharacteristicMatrixS(lambda, nt.T, n1, theta1)
 			Amat = MatMul2C(Amat, Mj)
 			theta = theta1
 			n0 = n1
 		}
+		cos1c := cmplx.Cos(theta)
+		back = Mat2C{
+			{1, 0},
+			{n1 * cos1c, 0},
+		}
 	} else {
 		panic("invalid polarization, must be either Ppol or Spol")
 	}
 	Amat = MatMul2C(front, Amat)
-	// if vacAmbient {
-	// 	n1 = complex(1, 0)
-	// 	theta = SnellAOR(n0, n1, theta)
-	// }
-	cos1c := cmplx.Cos(theta)
-	back := Mat2C{
-		{1, 0},
-		{n1 * cos1c, 0},
-	}
 	Amat = MatMul2C(Amat, back)
+	Amat = MatScale2C(Amat, term1)
 	return Totalr(Amat), Totalt(Amat)
 }
